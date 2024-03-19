@@ -35,12 +35,16 @@ import numpy as np
 import math
 from datetime import datetime
 import matplotlib.pyplot as plt
+from tudatpy.astro import frame_conversion
 import os
 import sys
 import inspect
 from scipy.integrate import dblquad
 from scipy.special import erfcinv
 import json
+import scipy.stats
+
+
 
 
 
@@ -192,7 +196,13 @@ def Pc2D_Foster(X1, P1, X2, P2, HBR, rtol=1e-8, HBR_type='circle'):
         print('Error: HBR type is not supported! Must be circle, square, or squareEqArea')
         print(HBR_type)
     
-    return Pc
+    
+    invP = np.linalg.inv(Peci)
+    diff = r1 - r2
+    M = float(np.sqrt(np.dot(diff.T, np.dot(invP, diff)))[0,0])
+    d = np.linalg.norm(r1 - r2)
+    d_rad = np.abs(np.linalg.norm(r1) - np.linalg.norm(r2))
+    return Pc, M, d, d_rad
 
 
 
@@ -259,6 +269,36 @@ def remediate_covariance(Praw, Lclip, Lraw=[], Vraw=[]):
     
     
     return Prem, Pdet, Pinv, posdef_status, clip_status
+
+
+rso_dict = read_json_file('assignment2\data\conjunction_case15.json')
+HBR_case_15 = 2.09074575900433 + 0.05
+# HBR_case_15 = 2.3602050 + 0.05
+
+sat = list(rso_dict.keys())[0]
+debris =list(rso_dict.keys())[1]
+# Extract the state and covariance data for the two RSOs
+X1 = rso_dict[sat]['state']
+P1 = rso_dict[sat]['covar']
+X2 = rso_dict[debris]['state']
+P2 = rso_dict[debris]['covar']
+RSW_1 = frame_conversion.inertial_to_rsw_rotation_matrix(X1)
+
+Sat_in_RSW_pos = RSW_1 @ X1[0:3]
+Debris_in_RSW_pos = RSW_1 @ X2[0:3]
+RSW_DIFF_pos = Sat_in_RSW_pos - Debris_in_RSW_pos
+
+Sat_in_RSW_vel = RSW_1 @ X1[3:]
+Debris_in_RSW_vel = RSW_1 @ X2[3:]
+RSW_DIFF_vel= Sat_in_RSW_vel - Debris_in_RSW_vel
+diff_pos_rsw_abs = np.linalg.norm(RSW_DIFF_pos)
+diff_vel_rsw_abs = np.linalg.norm(RSW_DIFF_vel)
+# Calculate the 2D Probability of Collision
+Pc = Pc2D_Foster(X1, P1, X2, P2, HBR_case_15, rtol=1e-8, HBR_type='circle')
+
+# Print the calculated Probability of Collision
+print(f'2D Probability of Collision: {Pc[0]} and the Mahalanobis distance:{Pc[1]} and the minimum Euclidean distance:{Pc[2]}')
+print(f'{RSW_DIFF_pos}, {RSW_DIFF_vel}, {diff_pos_rsw_abs}, {diff_vel_rsw_abs}')
 
 
 

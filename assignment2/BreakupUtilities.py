@@ -1833,6 +1833,7 @@ def plot_breakup_stats(lc_array, N_bin, N_cum, lc_list_full, A_list, A_m_list, m
     plt.loglog(A_m_list, dV_mag_list, 'k.')
     plt.xlabel('A/m Ratio [m$^2$/kg]')
     plt.ylabel('delta-V [m/s]')
+    plt.show()
     
     
     return

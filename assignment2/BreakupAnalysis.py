@@ -12,34 +12,34 @@ plt.close('all')
 ###############################################################################
 # DEFINE SIMULATION PARAMETERS
 #
-# Use meters, kilograms, seconds, radians for all units
+# Use meters, kilograms, seconds, radians for all units and more
 ###############################################################################
 
 # Target orbit and epoch [UTC]
-initial_epoch = datetime(2019, 7, 24, 0, 0, 0)
+initial_epoch = datetime(2023, 7, 1, 12, 0, 0)
 
 # Envisat
-SMA_meters = 7143.4*1000.
-ECC = 0.0001427
-INC_rad = 98.1478*np.pi/180.
-RAAN_rad = 224.8380*np.pi/180.
-AOP_rad = 93.2798*np.pi/180.
-TA_rad = 0.*np.pi/180.
+SMA_meters = 26561.68*1000.
+ECC = 0.0110379
+INC_rad = 54.48*np.pi/180.
+RAAN_rad = 251.88*np.pi/180.
+AOP_rad = 60.15 *np.pi/180.
+TA_rad = 271.21*np.pi/180.
 
 # Impact Parameters
-mass_target = 8211.
-mass_impactor = 3.4
-impact_velocity = 14.*1000.
+mass_target = 1580
+mass_impactor = 4289.89
+impact_velocity = 2.285*1000
 
 # Spacecraft drag and SRP parameters
 Cd = 2.2
 Cr = 1.3
 
 # Propagation time in seconds
-tfinal_sec = 86400.*90.
+tfinal_sec = 86400.*365.25*10
 
 # Maximum number of objects to keep for propagation and plots
-N_max = 10
+N_max = 250
 
 # One at a time flag for MEO/GEO propagation
 # Set to True will propagate objects one at a time and print status
@@ -52,7 +52,7 @@ np.random.seed(1)
 
 # Output directory and filename
 outdir = 'output'
-fname = os.path.join(outdir, 'breakup_data.pkl')
+fname = os.path.join(outdir, 'test.pkl')
 
 
 
@@ -171,11 +171,13 @@ start_prop = time.time()
 # initial or final time
 latlon_array_initial = np.empty((0,2))
 latlon_array_final = np.empty((0,2))
+latlon_array_90 = np.empty((0,2))
 
 # kep_array_final each row corresponds to the Keplerian elements not 
 # including anomaly angle at final time, using the order
 # [SMA, ECC, INC, RAAN, AOP]
 kep_array_final = np.empty((0,5))
+kep_array_90 = np.empty((0,5))
 
 # reentry_times is a list of time in seconds since the start of the propagation
 # at which objects reenter. If no objects reenter by final time, the list will
@@ -249,7 +251,7 @@ else:
 
     # Extract output for plots
     for jj in range(nobj):
-        
+        ninety_day_flag = False
         # Retrieve full time history of dependent variables for this object
         sma = yout[:,jj*8]
         ecc = yout[:,jj*8+1]
@@ -268,6 +270,12 @@ else:
             ei = float(ecc[ii])
             rp = ai*(1.-ei)
             hp = rp - util.Re
+            if tout[ii] - tin[0] >= 90*86400 and not ninety_day_flag :
+                kep_out_90 = np.array([[sma[ii], ecc[ii], inc[ii], raan[ii], aop[ii]]])
+                kep_array_90 = np.concatenate((kep_array_90, kep_out_90), axis=0)
+                latlon_array_90 = np.concatenate((latlon_array_90, np.array([[lat[ii], lon[ii]]])))
+                ninety_day_flag = True
+            
             if hp < 100000.:
                 reentry_times.append(tout[ii]-tin[0])
                 reentry_flag = True
@@ -279,6 +287,7 @@ else:
             kep_array_final = np.concatenate((kep_array_final, kep_out), axis=0)
             latlon_array_final = np.concatenate((latlon_array_final, np.array([[lat[-1], lon[-1]]])))
 
+
     
 
 print('Propagation Time: ', time.time()-start_prop)
@@ -289,13 +298,13 @@ print('reentry times [years]', [ti/(86400.*365.25) for ti in reentry_times])
 # Save data, create new directory if necessary    
 try:
     pklFile = open(fname, 'wb')
-    pickle.dump([kep_array_initial, kep_array_final, reentry_times,
+    pickle.dump([kep_array_initial, kep_array_final, reentry_times, kep_array_90, latlon_array_90,
                  latlon_array_initial, latlon_array_final], pklFile, -1)
     pklFile.close()
 except:
     os.mkdir(outdir)
     pklFile = open(fname, 'wb')
-    pickle.dump([kep_array_initial, kep_array_final, reentry_times,
+    pickle.dump([kep_array_initial, kep_array_final, reentry_times, kep_array_90, latlon_array_90,
                  latlon_array_initial, latlon_array_final], pklFile, -1)
     pklFile.close()
 
